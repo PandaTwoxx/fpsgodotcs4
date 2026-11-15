@@ -1,0 +1,34 @@
+[gd_scene format=3 uid="uid://cpmf2rxlw1bgk"]
+
+[ext_resource type="PackedScene" uid="uid://ddn7hby4kabo" path="res://kenney_animated-characters-survivors/Model/characterMedium.fbx" id="1_ncvs4"]
+[ext_resource type="Texture2D" uid="uid://c02rovklbt1wf" path="res://kenney_animated-characters-survivors/Skins/survivorMaleB.png" id="2_t1rpu"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_shob3"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_shob3"]
+albedo_texture = ExtResource("2_t1rpu")
+
+[node name="PlayerModel1" type="CharacterBody3D" unique_id=64640420]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1269673424]
+transform = Transform3D(0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0)
+shape = SubResource("CapsuleShape3D_shob3")
+
+[node name="Head" type="Node3D" parent="." unique_id=1692544563]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+
+[node name="Camera3D" type="Camera3D" parent="Head" unique_id=692775774]
+current = true
+fov = 110.0
+
+[node name="RayCast3D" type="RayCast3D" parent="Head/Camera3D" unique_id=1844753052]
+target_position = Vector3(0, 0, -100)
+
+[node name="characterMedium" parent="." unique_id=797134779 instance=ExtResource("1_ncvs4")]
+transform = Transform3D(0.2, 0, 0, 0, 0.2, 0, 0, 0, 0.2, 0, -0.33852553, 0)
+
+[node name="characterMedium" parent="characterMedium/Root/Skeleton3D" parent_id_path=PackedInt32Array(797134779, 1738695849) index="0" unique_id=1924829489]
+cast_shadow = 3
+surface_material_override/0 = SubResource("StandardMaterial3D_shob3")
+
+[editable path="characterMedium"]
