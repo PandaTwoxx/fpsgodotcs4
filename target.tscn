@@ -1,0 +1,18 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://target.gd" id="1_e1yvt"]
+[ext_resource type="PackedScene" path="res://kenney_blaster-kit_2.1/Models/GLB format/target-large.glb" id="2_5ebp1"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_uqips"]
+size = Vector3(1, 1.2, 0.4)
+
+[node name="Target" type="StaticBody3D" unique_id=1216947732]
+script = ExtResource("1_e1yvt")
+
+[node name="Model" type="Node3D" parent="." unique_id=521290530]
+
+[node name="TargetMesh" type="Node3D" parent="Model" unique_id=339982946 instance=ExtResource("2_5ebp1")]
+transform = Transform3D(2.5, 0, 0, 0, 2.5, 0, 0, 0, 2.5, 0, 0, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1784377865]
+shape = SubResource("BoxShape3D_uqips")

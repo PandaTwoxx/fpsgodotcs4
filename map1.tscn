@@ -16,6 +16,8 @@
 [ext_resource type="PackedScene" uid="uid://bgsfu6cqtf4g1" path="res://kenney_city-kit-industrial_2.0/Models/GLB format/building-p.glb" id="13_muogi"]
 [ext_resource type="PackedScene" path="res://pause_menu.tscn" id="99_pause"]
 [ext_resource type="PackedScene" uid="uid://ge1vvj72mad" path="res://kenney_city-kit-industrial_2.0/Models/GLB format/building-i.glb" id="15_awt07"]
+[ext_resource type="PackedScene" path="res://target.tscn" id="16_target"]
+[ext_resource type="PackedScene" path="res://rigid_crate.tscn" id="17_crate"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_p84jh"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -287,6 +289,24 @@ transform = Transform3D(5, 0, 0, 0, 5, 0, 0, 0, 5, 4.759794, 0.5, -0.7992897)
 
 [node name="building-i2" parent="." unique_id=1957989337 instance=ExtResource("15_awt07")]
 transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, -17.040907, 0.5, 8.040292)
+
+[node name="Target1" parent="." instance=ExtResource("16_target")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, -4)
+
+[node name="Target2" parent="." instance=ExtResource("16_target")]
+transform = Transform3D(0.965926, 0, 0.258819, 0, 1, 0, -0.258819, 0, 0.965926, -3.5, 1.2, -6)
+
+[node name="Target3" parent="." instance=ExtResource("16_target")]
+transform = Transform3D(0.965926, 0, -0.258819, 0, 1, 0, 0.258819, 0, 0.965926, 3.5, 1.2, -6)
+
+[node name="RigidCrate1" parent="." instance=ExtResource("17_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 1.0, -3)
+
+[node name="RigidCrate2" parent="." instance=ExtResource("17_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 1.0, -3)
+
+[node name="RigidCrate3" parent="." instance=ExtResource("17_crate")]
+transform = Transform3D(0.965926, 0, 0.258819, 0, 1, 0, -0.258819, 0, 0.965926, 1.5, 1.4, -3)
 
 [editable path="building-a2"]
 [editable path="building-c2"]
