@@ -7,6 +7,13 @@ extends CanvasLayer
 @onready var health_bar: Control = get_node_or_null("Root/Health/Bar")
 @onready var health_fill: ColorRect = get_node_or_null("Root/Health/Bar/Fill")
 @onready var damage_flash: ColorRect = get_node_or_null("Root/DamageFlash")
+@onready var wave_label: Label = get_node_or_null("Root/WaveInfo/WaveLabel")
+@onready var left_label: Label = get_node_or_null("Root/WaveInfo/LeftLabel")
+@onready var score_label: Label = get_node_or_null("Root/ScoreInfo/ScoreLabel")
+@onready var kills_label: Label = get_node_or_null("Root/ScoreInfo/KillsLabel")
+@onready var banner: Control = get_node_or_null("Root/Banner")
+@onready var banner_title: Label = get_node_or_null("Root/Banner/BannerTitle")
+@onready var banner_sub: Label = get_node_or_null("Root/Banner/BannerSub")
 
 const AMMO_NORMAL := Color(1, 1, 1, 0.95)
 const AMMO_LOW := Color(1.0, 0.35, 0.3, 1.0)
@@ -14,12 +21,41 @@ const AMMO_LOW := Color(1.0, 0.35, 0.3, 1.0)
 var hitmarker_timer: float = 0.0
 var _reloading := false
 var _flash_tween: Tween
+var _banner_tween: Tween
 
 func _ready() -> void:
 	# Keep running while the tree is paused so the crosshair can hide itself.
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	if hitmarker:
 		hitmarker.modulate.a = 0.0
+	if banner:
+		banner.modulate.a = 0.0
+	Game.changed.connect(_refresh_run_stats)
+	Game.banner.connect(show_banner)
+	_refresh_run_stats()
+
+func _refresh_run_stats() -> void:
+	if wave_label:
+		wave_label.text = "WAVE %d" % maxi(Game.wave, 1)
+	if left_label:
+		left_label.text = "Zombies left: %d" % Game.zombies_left
+	if score_label:
+		score_label.text = "SCORE  %d" % Game.score
+	if kills_label:
+		kills_label.text = "KILLS  %d" % Game.kills
+
+## Big centered announcement that fades out ("WAVE 3", "WAVE CLEARED", ...).
+func show_banner(title: String, subtitle: String = "") -> void:
+	if not banner:
+		return
+	banner_title.text = title
+	banner_sub.text = subtitle
+	if _banner_tween and _banner_tween.is_valid():
+		_banner_tween.kill()
+	banner.modulate.a = 1.0
+	_banner_tween = create_tween()
+	_banner_tween.tween_interval(2.2)
+	_banner_tween.tween_property(banner, "modulate:a", 0.0, 0.8)
 
 func set_ammo(current: int, max_ammo: int) -> void:
 	if ammo_label:
