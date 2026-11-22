@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://b12mj0xivvy2c" path="res://kenney_blaster-kit_2.1/Models/GLB format/blaster-a.glb" id="4_blstr"]
 [ext_resource type="AudioStream" path="res://sounds/blaster_fire.wav" id="5_sfxbr"]
 [ext_resource type="PackedScene" path="res://crosshair_hud.tscn" id="6_chhud"]
+[ext_resource type="PackedScene" path="res://death_screen.tscn" id="7_death"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_shob3"]
 
@@ -54,5 +55,7 @@ stream = ExtResource("5_sfxbr")
 volume_db = -4.0
 
 [node name="CrosshairHUD" parent="." unique_id=98712348 instance=ExtResource("6_chhud")]
+
+[node name="DeathScreen" parent="." instance=ExtResource("7_death")]
 
 [editable path="characterMedium"]
