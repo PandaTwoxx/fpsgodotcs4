@@ -143,3 +143,55 @@ theme_override_font_sizes/font_size = 64
 text = "12 / 12"
 horizontal_alignment = 2
 
+[node name="DamageFlash" type="ColorRect" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.8, 0.05, 0.05, 0)
+
+[node name="Health" type="VBoxContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 48.0
+offset_top = -110.0
+offset_right = 408.0
+offset_bottom = -40.0
+grow_vertical = 0
+mouse_filter = 2
+alignment = 2
+
+[node name="HealthLabel" type="Label" parent="Root/Health"]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.8)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 30
+text = "HEALTH  100"
+
+[node name="Bar" type="Control" parent="Root/Health"]
+custom_minimum_size = Vector2(360, 26)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Back" type="ColorRect" parent="Root/Health/Bar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0.55)
+
+[node name="Fill" type="ColorRect" parent="Root/Health/Bar"]
+layout_mode = 0
+offset_right = 360.0
+offset_bottom = 26.0
+mouse_filter = 2
+color = Color(0.3, 0.9, 0.35, 1)
+
