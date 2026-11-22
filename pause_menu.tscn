@@ -1,0 +1,84 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://pause_menu.gd" id="1_pause"]
+
+[node name="PauseMenu" type="CanvasLayer"]
+process_mode = 3
+layer = 10
+visible = false
+script = ExtResource("1_pause")
+
+[node name="Dim" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.6)
+
+[node name="Center" type="CenterContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Main" type="VBoxContainer" parent="Center"]
+custom_minimum_size = Vector2(420, 0)
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Title" type="Label" parent="Center/Main"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 64
+text = "PAUSED"
+horizontal_alignment = 1
+
+[node name="ResumeButton" type="Button" parent="Center/Main"]
+layout_mode = 2
+text = "Resume"
+
+[node name="ControlsButton" type="Button" parent="Center/Main"]
+layout_mode = 2
+text = "How to Play"
+
+[node name="RestartButton" type="Button" parent="Center/Main"]
+layout_mode = 2
+text = "Restart"
+
+[node name="QuitButton" type="Button" parent="Center/Main"]
+layout_mode = 2
+text = "Quit"
+
+[node name="ControlsPanel" type="PanelContainer" parent="Center"]
+visible = false
+custom_minimum_size = Vector2(620, 0)
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Center/ControlsPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 32
+
+[node name="VBox" type="VBoxContainer" parent="Center/ControlsPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="Heading" type="Label" parent="Center/ControlsPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 48
+text = "How to Play"
+horizontal_alignment = 1
+
+[node name="Instructions" type="Label" parent="Center/ControlsPanel/Margin/VBox"]
+layout_mode = 2
+text = "W / A / S / D  -  Move
+Mouse  -  Look around
+Space  -  Jump
+Esc  -  Pause / Resume"
+
+[node name="BackButton" type="Button" parent="Center/ControlsPanel/Margin/VBox"]
+layout_mode = 2
+text = "Back"
