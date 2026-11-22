@@ -9,11 +9,41 @@ var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
 @onready var raycast: RayCast3D = $Head/Camera3D/RayCast3D
-# Adjust this path if your AnimationPlayer is located elsewhere under your character node
-@onready var animation_player: AnimationPlayer = $characterMedium/AnimationPlayer 
+@onready var character: Node3D = $characterMedium
+
+const ANIM_DIR := "res://kenney_animated-characters-survivors/Animations/"
+# short name -> [source file, clip name inside the file, loops?]
+const ANIMATIONS := {
+	"idle": ["idle.fbx", "Root|Idle", true],
+	"run": ["run.fbx", "Root|Run", true],
+	"jump": ["jump.fbx", "Root|Jump", false],
+}
+
+var animation_player: AnimationPlayer
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	_setup_animations()
+
+# The character model ships without an AnimationPlayer; its clips live in
+# separate FBX files, so collect them into one library at startup.
+func _setup_animations() -> void:
+	var library := AnimationLibrary.new()
+	for anim_name: String in ANIMATIONS:
+		var info: Array = ANIMATIONS[anim_name]
+		var source: Node = (load(ANIM_DIR + info[0]) as PackedScene).instantiate()
+		var source_player := source.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		if source_player and source_player.has_animation(info[1]):
+			var clip := source_player.get_animation(info[1]).duplicate() as Animation
+			clip.loop_mode = Animation.LOOP_LINEAR if info[2] else Animation.LOOP_NONE
+			library.add_animation(anim_name, clip)
+		else:
+			push_warning("Animation '%s' not found in %s" % [info[1], info[0]])
+		source.free()
+	animation_player = AnimationPlayer.new()
+	character.add_child(animation_player)
+	animation_player.add_animation_library("", library)
+	animation_player.play("idle")
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
