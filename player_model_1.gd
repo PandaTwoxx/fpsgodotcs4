@@ -19,13 +19,22 @@ const IMPACT_EFFECT_SCENE = preload("res://impact_effect.tscn")
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
 @onready var raycast: RayCast3D = $Head/Camera3D/RayCast3D
+@onready var character: Node3D = $characterMedium
 @onready var weapon_holder: Node3D = get_node_or_null("Head/Camera3D/WeaponHolder")
 @onready var muzzle: Marker3D = get_node_or_null("Head/Camera3D/WeaponHolder/Muzzle")
 @onready var muzzle_flash: OmniLight3D = get_node_or_null("Head/Camera3D/WeaponHolder/Muzzle/MuzzleFlash")
 @onready var shoot_sound: AudioStreamPlayer = get_node_or_null("ShootSound")
 @onready var crosshair_hud: CanvasLayer = get_node_or_null("CrosshairHUD")
-@onready var animation_player: AnimationPlayer = get_node_or_null("characterMedium/AnimationPlayer")
 
+const ANIM_DIR := "res://kenney_animated-characters-survivors/Animations/"
+# short name -> [source file, clip name inside the file, loops?]
+const ANIMATIONS := {
+	"idle": ["idle.fbx", "Root|Idle", true],
+	"run": ["run.fbx", "Root|Run", true],
+	"jump": ["jump.fbx", "Root|Jump", false],
+}
+
+var animation_player: AnimationPlayer
 var fire_timer: float = 0.0
 var weapon_default_pos: Vector3 = Vector3(0.22, -0.22, -0.42)
 var weapon_default_rot: Vector3 = Vector3.ZERO
@@ -44,6 +53,33 @@ func _ready() -> void:
 	if weapon_holder:
 		weapon_default_pos = weapon_holder.position
 		weapon_default_rot = weapon_holder.rotation
+	
+	_setup_animations()
+
+# The character model ships without an AnimationPlayer; its clips live in
+# separate FBX files, so collect them into one library at startup.
+func _setup_animations() -> void:
+	if not character:
+		return
+	var library := AnimationLibrary.new()
+	for anim_name: String in ANIMATIONS:
+		var info: Array = ANIMATIONS[anim_name]
+		var path: String = ANIM_DIR + info[0]
+		if not ResourceLoader.exists(path):
+			continue
+		var source: Node = (load(path) as PackedScene).instantiate()
+		var source_player := source.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		if source_player and source_player.has_animation(info[1]):
+			var clip := source_player.get_animation(info[1]).duplicate() as Animation
+			clip.loop_mode = Animation.LOOP_LINEAR if info[2] else Animation.LOOP_NONE
+			library.add_animation(anim_name, clip)
+		else:
+			push_warning("Animation '%s' not found in %s" % [info[1], info[0]])
+		source.free()
+	animation_player = AnimationPlayer.new()
+	character.add_child(animation_player)
+	animation_player.add_animation_library("", library)
+	animation_player.play("idle")
 
 func _unhandled_input(event: InputEvent) -> void:
 	# ESC to release mouse
@@ -160,23 +196,31 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y -= gravity * delta
 
-	# Handle jump
-	if Input.is_action_just_pressed("ui_accept") and is_on_floor():
+	# Handle jump (supports both "jump" and default "ui_accept")
+	var jump_pressed := Input.is_action_just_pressed("jump") if InputMap.has_action("jump") else Input.is_action_just_pressed("ui_accept")
+	if jump_pressed and is_on_floor():
 		velocity.y = JUMP_VELOCITY
+		if animation_player and animation_player.has_animation("jump"):
+			animation_player.play("jump")
 
-	# Get movement input
-	var input_dir := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+	# Get movement input (supports custom action names and ui fallbacks)
+	var input_dir: Vector2
+	if InputMap.has_action("move_left"):
+		input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	else:
+		input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+		
 	var direction := (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 	
 	if direction:
 		velocity.x = direction.x * SPEED
 		velocity.z = direction.z * SPEED
-		if animation_player and animation_player.has_animation("run"):
+		if animation_player and animation_player.has_animation("run") and is_on_floor():
 			animation_player.play("run")
 	else:
 		velocity.x = move_toward(velocity.x, 0, SPEED)
 		velocity.z = move_toward(velocity.z, 0, SPEED)
-		if animation_player and animation_player.has_animation("idle"):
+		if animation_player and animation_player.has_animation("idle") and is_on_floor():
 			animation_player.play("idle")
 
 	move_and_slide()
