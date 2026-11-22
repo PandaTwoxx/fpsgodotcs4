@@ -26,7 +26,7 @@ spec:
       containers:
         - name: game-server
           # Image is updated by the GitHub Actions CI workflow via kustomize patch.
-          image: ghcr.io/pandatwoxx/fpsgodotcs4/game-server:latest
+          image: ghcr.io/PandaTwoxx/fpsgodotcs4/game-server:latest
           imagePullPolicy: Always
           ports:
             - name: ws-http
