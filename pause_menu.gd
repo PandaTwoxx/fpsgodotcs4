@@ -8,15 +8,18 @@ extends CanvasLayer
 @onready var restart_btn: Button = $Center/Main/RestartButton
 @onready var quit_btn: Button = $Center/Main/QuitButton
 @onready var back_btn: Button = $Center/ControlsPanel/Margin/VBox/BackButton
+@onready var settings_menu: Control = $SettingsMenu
 
 func _ready() -> void:
 	hide()
 	resume_btn.pressed.connect(_set_paused.bind(false))
 	mp_btn.pressed.connect(_open_multiplayer)
-	controls_btn.pressed.connect(_show_controls.bind(true))
+	controls_btn.pressed.connect(_show_page.bind(controls_panel))
+	$Center/Main/SettingsButton.pressed.connect(_show_page.bind(settings_menu))
 	restart_btn.pressed.connect(_restart)
 	quit_btn.pressed.connect(get_tree().quit)
-	back_btn.pressed.connect(_show_controls.bind(false))
+	back_btn.pressed.connect(_show_page.bind(main_box))
+	settings_menu.back_pressed.connect(_show_page.bind(main_box))
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not event.is_action_pressed("pause"):
@@ -37,17 +40,19 @@ func _unhandled_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 	if not visible:
 		_set_paused(true)
-	elif controls_panel.visible:
-		_show_controls(false)
-	else:
+	elif main_box.visible:
 		_set_paused(false)
+	else:
+		if settings_menu.visible:
+			Settings.save()
+		_show_page(main_box)
 
 func _is_multiplayer_active() -> bool:
 	var net = get_node_or_null("/root/Network")
 	return net and net.is_connected_to_server()
 
 func _set_paused(paused: bool) -> void:
-	_show_controls(false)
+	_show_page(main_box)
 	visible = paused
 	
 	# Don't freeze scene tree if connected to multiplayer server!
@@ -71,13 +76,15 @@ func _get_multiplayer_hud() -> Node:
 		return get_tree().current_scene.get_node_or_null("MultiplayerHUD")
 	return null
 
-func _show_controls(show_panel: bool) -> void:
-	controls_panel.visible = show_panel
-	main_box.visible = not show_panel
-	if show_panel:
-		back_btn.grab_focus()
-	elif visible:
+## Show exactly one of: main buttons, controls panel, settings menu.
+func _show_page(page: Control) -> void:
+	main_box.visible = page == main_box
+	controls_panel.visible = page == controls_panel
+	settings_menu.visible = page == settings_menu
+	if page == main_box:
 		resume_btn.grab_focus()
+	elif page == controls_panel:
+		back_btn.grab_focus()
 
 func _restart() -> void:
 	get_tree().paused = false
