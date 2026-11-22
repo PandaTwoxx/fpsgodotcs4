@@ -1,6 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://pause_menu.gd" id="1_pause"]
+[ext_resource type="PackedScene" path="res://settings_menu.tscn" id="2_settings"]
 
 [node name="PauseMenu" type="CanvasLayer"]
 process_mode = 3
@@ -42,6 +43,10 @@ text = "Resume"
 layout_mode = 2
 text = "How to Play"
 
+[node name="SettingsButton" type="Button" parent="Center/Main"]
+layout_mode = 2
+text = "Settings"
+
 [node name="RestartButton" type="Button" parent="Center/Main"]
 layout_mode = 2
 text = "Restart"
@@ -82,3 +87,6 @@ Esc  -  Pause / Resume"
 [node name="BackButton" type="Button" parent="Center/ControlsPanel/Margin/VBox"]
 layout_mode = 2
 text = "Back"
+
+[node name="SettingsMenu" parent="." instance=ExtResource("2_settings")]
+visible = false
