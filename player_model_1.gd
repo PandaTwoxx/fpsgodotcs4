@@ -60,13 +60,6 @@ func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	health = max_health
 	
-	# Register shoot input action if not present
-	if not InputMap.has_action("shoot"):
-		InputMap.add_action("shoot")
-		var mouse_event := InputEventMouseButton.new()
-		mouse_event.button_index = MOUSE_BUTTON_LEFT
-		InputMap.action_add_event("shoot", mouse_event)
-	
 	if weapon_holder:
 		weapon_default_pos = weapon_holder.position
 		weapon_default_rot = weapon_holder.rotation
@@ -177,10 +170,6 @@ func _setup_animations() -> void:
 	animation_player.play("idle")
 
 func _unhandled_input(event: InputEvent) -> void:
-	# ESC to release mouse
-	if event.is_action_pressed("ui_cancel"):
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	
 	# Click to recapture mouse
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not is_dead:
@@ -209,7 +198,7 @@ func _process(delta: float) -> void:
 	
 	# Check shooting input
 	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		if Input.is_action_pressed("shoot") or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		if Input.is_action_pressed("shoot"):
 			if fire_timer <= 0.0:
 				shoot()
 				fire_timer = fire_rate
@@ -354,20 +343,14 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y -= gravity * delta
 
-	# Handle jump (supports both "jump" and default "ui_accept")
-	var jump_pressed := Input.is_action_just_pressed("jump") if InputMap.has_action("jump") else Input.is_action_just_pressed("ui_accept")
-	if jump_pressed and is_on_floor():
+	# Handle jump
+	if Input.is_action_just_pressed("jump") and is_on_floor():
 		velocity.y = JUMP_VELOCITY
 		if animation_player and animation_player.has_animation("jump"):
 			animation_player.play("jump")
 
-	# Get movement input (supports custom action names and ui fallbacks)
-	var input_dir: Vector2
-	if InputMap.has_action("move_left"):
-		input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	else:
-		input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
-		
+	# Get movement input
+	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var direction := (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 	
 	if direction:
