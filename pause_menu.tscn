@@ -81,6 +81,8 @@ horizontal_alignment = 1
 layout_mode = 2
 text = "W / A / S / D  -  Move
 Mouse  -  Look around
+Left click  -  Shoot
+R  -  Reload
 Space  -  Jump
 Esc  -  Pause / Resume"
 

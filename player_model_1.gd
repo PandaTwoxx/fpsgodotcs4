@@ -12,9 +12,13 @@ var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 @export var impact_force: float = 12.0
 @export var recoil_kick: float = 0.05
 @export var recoil_rotation: float = 0.04
+@export var magazine_size: int = 12
+@export var reload_time: float = 1.3
 
 const BULLET_TRACER_SCENE = preload("res://bullet_tracer.tscn")
 const IMPACT_EFFECT_SCENE = preload("res://impact_effect.tscn")
+const RELOAD_DIP_POS := Vector3(0.0, -0.22, 0.06)
+const RELOAD_DIP_ROT := Vector3(0.7, 0.0, 0.0)
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
@@ -36,6 +40,8 @@ const ANIMATIONS := {
 
 var animation_player: AnimationPlayer
 var fire_timer: float = 0.0
+var ammo: int = 0
+var reload_left: float = 0.0  # > 0 while a reload is in progress
 var weapon_default_pos: Vector3 = Vector3(0.22, -0.22, -0.42)
 var weapon_default_rot: Vector3 = Vector3.ZERO
 var muzzle_tween: Tween
@@ -50,6 +56,8 @@ func _ready() -> void:
 	_setup_animations()
 	_apply_settings()
 	Settings.changed.connect(_apply_settings)
+	ammo = magazine_size
+	_update_ammo_hud()
 
 func _apply_settings() -> void:
 	camera.fov = Settings.fov
@@ -97,19 +105,53 @@ func _process(delta: float) -> void:
 	if fire_timer > 0.0:
 		fire_timer -= delta
 	
+	# Reload progress
+	if reload_left > 0.0:
+		reload_left -= delta
+		if reload_left <= 0.0:
+			_finish_reload()
+	
+	if Input.is_action_just_pressed("reload"):
+		start_reload()
+	
 	# Check shooting input
 	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		if Input.is_action_pressed("shoot"):
-			if fire_timer <= 0.0:
+		if Input.is_action_pressed("shoot") and fire_timer <= 0.0 and reload_left <= 0.0:
+			if ammo > 0:
 				shoot()
 				fire_timer = fire_rate
+			else:
+				start_reload()  # trigger pulled on an empty magazine
 	
-	# Smooth recoil recovery
+	# Smooth recoil recovery; the weapon dips while reloading
 	if weapon_holder:
-		weapon_holder.position = weapon_holder.position.lerp(weapon_default_pos, delta * 14.0)
-		weapon_holder.rotation = weapon_holder.rotation.lerp(weapon_default_rot, delta * 16.0)
+		var reloading := reload_left > 0.0
+		var target_pos := weapon_default_pos + (RELOAD_DIP_POS if reloading else Vector3.ZERO)
+		var target_rot := weapon_default_rot + (RELOAD_DIP_ROT if reloading else Vector3.ZERO)
+		weapon_holder.position = weapon_holder.position.lerp(target_pos, delta * 14.0)
+		weapon_holder.rotation = weapon_holder.rotation.lerp(target_rot, delta * 16.0)
+
+func start_reload() -> void:
+	if reload_left > 0.0 or ammo >= magazine_size:
+		return
+	reload_left = reload_time
+	if crosshair_hud and crosshair_hud.has_method("set_reloading"):
+		crosshair_hud.set_reloading(true)
+
+func _finish_reload() -> void:
+	ammo = magazine_size
+	if crosshair_hud and crosshair_hud.has_method("set_reloading"):
+		crosshair_hud.set_reloading(false)
+	_update_ammo_hud()
+
+func _update_ammo_hud() -> void:
+	if crosshair_hud and crosshair_hud.has_method("set_ammo"):
+		crosshair_hud.set_ammo(ammo, magazine_size)
 
 func shoot() -> void:
+	ammo -= 1
+	_update_ammo_hud()
+	
 	# Play shoot sound
 	if shoot_sound:
 		shoot_sound.pitch_scale = randf_range(0.95, 1.05)
