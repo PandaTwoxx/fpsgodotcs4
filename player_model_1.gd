@@ -15,6 +15,11 @@ var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 @export var magazine_size: int = 12
 @export var reload_time: float = 1.3
 
+@export_group("Health")
+@export var max_health: float = 100.0
+@export var regen_delay: float = 6.0   # seconds without damage before healing starts
+@export var regen_rate: float = 3.0    # health per second while healing
+
 const BULLET_TRACER_SCENE = preload("res://bullet_tracer.tscn")
 const IMPACT_EFFECT_SCENE = preload("res://impact_effect.tscn")
 const RELOAD_DIP_POS := Vector3(0.0, -0.22, 0.06)
@@ -29,65 +34,43 @@ const RELOAD_DIP_ROT := Vector3(0.7, 0.0, 0.0)
 @onready var muzzle_flash: OmniLight3D = get_node_or_null("Head/Camera3D/WeaponHolder/Muzzle/MuzzleFlash")
 @onready var shoot_sound: AudioStreamPlayer = get_node_or_null("ShootSound")
 @onready var crosshair_hud: CanvasLayer = get_node_or_null("CrosshairHUD")
-
-const ANIM_DIR := "res://kenney_animated-characters-survivors/Animations/"
-# short name -> [source file, clip name inside the file, loops?]
-const ANIMATIONS := {
-	"idle": ["idle.fbx", "Root|Idle", true],
-	"run": ["run.fbx", "Root|Run", true],
-	"jump": ["jump.fbx", "Root|Jump", false],
-}
+@onready var death_screen: CanvasLayer = get_node_or_null("DeathScreen")
 
 var animation_player: AnimationPlayer
 var fire_timer: float = 0.0
 var ammo: int = 0
 var reload_left: float = 0.0  # > 0 while a reload is in progress
+var health: float = 0.0
+var is_dead := false
+var _since_damage := 0.0
+var _shake := 0.0
 var weapon_default_pos: Vector3 = Vector3(0.22, -0.22, -0.42)
 var weapon_default_rot: Vector3 = Vector3.ZERO
 var muzzle_tween: Tween
 
 func _ready() -> void:
+	add_to_group("player")
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	
 	if weapon_holder:
 		weapon_default_pos = weapon_holder.position
 		weapon_default_rot = weapon_holder.rotation
 	
-	_setup_animations()
+	if character:
+		animation_player = CharacterAnimations.attach(character)
 	_apply_settings()
 	Settings.changed.connect(_apply_settings)
 	ammo = magazine_size
 	_update_ammo_hud()
+	health = max_health
+	_update_health_hud()
 
 func _apply_settings() -> void:
 	camera.fov = Settings.fov
 
-# The character model ships without an AnimationPlayer; its clips live in
-# separate FBX files, so collect them into one library at startup.
-func _setup_animations() -> void:
-	if not character:
-		return
-	var library := AnimationLibrary.new()
-	for anim_name: String in ANIMATIONS:
-		var info: Array = ANIMATIONS[anim_name]
-		var path: String = ANIM_DIR + info[0]
-		if not ResourceLoader.exists(path):
-			continue
-		var source: Node = (load(path) as PackedScene).instantiate()
-		var source_player := source.find_child("AnimationPlayer", true, false) as AnimationPlayer
-		if source_player and source_player.has_animation(info[1]):
-			var clip := source_player.get_animation(info[1]).duplicate() as Animation
-			clip.loop_mode = Animation.LOOP_LINEAR if info[2] else Animation.LOOP_NONE
-			library.add_animation(anim_name, clip)
-		else:
-			push_warning("Animation '%s' not found in %s" % [info[1], info[0]])
-		source.free()
-	animation_player = AnimationPlayer.new()
-	character.add_child(animation_player)
-	animation_player.add_animation_library("", library)
-	animation_player.play("idle")
-
 func _unhandled_input(event: InputEvent) -> void:
+	if is_dead:
+		return
 	# Click to recapture mouse
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
@@ -102,6 +85,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		head.rotation.x = clamp(head.rotation.x, deg_to_rad(-89), deg_to_rad(89))
 
 func _process(delta: float) -> void:
+	if is_dead:
+		return
+	_update_health(delta)
 	if fire_timer > 0.0:
 		fire_timer -= delta
 	
@@ -228,6 +214,8 @@ func _get_effects_container() -> Node:
 	return self
 
 func _physics_process(delta: float) -> void:
+	if is_dead:
+		return
 	# Add gravity
 	if not is_on_floor():
 		velocity.y -= gravity * delta
@@ -254,3 +242,38 @@ func _physics_process(delta: float) -> void:
 			animation_player.play("idle")
 
 	move_and_slide()
+
+## Called by zombies. Flashes the screen, shakes the camera, and may kill the player.
+func take_damage(amount: float) -> void:
+	if is_dead:
+		return
+	health = maxf(health - amount, 0.0)
+	_since_damage = 0.0
+	_shake = 1.0
+	_update_health_hud()
+	if crosshair_hud and crosshair_hud.has_method("flash_damage"):
+		crosshair_hud.flash_damage()
+	if health <= 0.0:
+		_die()
+
+func _update_health(delta: float) -> void:
+	_since_damage += delta
+	if _since_damage >= regen_delay and health < max_health:
+		health = minf(health + regen_rate * delta, max_health)
+		_update_health_hud()
+	# Camera shake after a hit, decaying quickly
+	_shake = maxf(_shake - delta * 4.0, 0.0)
+	camera.h_offset = randf_range(-1.0, 1.0) * 0.03 * _shake
+	camera.v_offset = randf_range(-1.0, 1.0) * 0.03 * _shake
+
+func _update_health_hud() -> void:
+	if crosshair_hud and crosshair_hud.has_method("set_health"):
+		crosshair_hud.set_health(health, max_health)
+
+func _die() -> void:
+	is_dead = true
+	velocity = Vector3.ZERO
+	camera.h_offset = 0.0
+	camera.v_offset = 0.0
+	if death_screen and death_screen.has_method("show_screen"):
+		death_screen.show_screen()
