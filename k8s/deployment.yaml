@@ -23,6 +23,8 @@ spec:
         runAsNonRoot: true
         runAsUser: 1000
         runAsGroup: 1000
+      nodeSelector:
+        kubernetes.io/arch: arm64
       containers:
         - name: game-server
           # Image is updated by the GitHub Actions CI workflow via kustomize patch.
