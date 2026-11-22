@@ -15,6 +15,8 @@
 [ext_resource type="PackedScene" uid="uid://v23kn0wb26ia" path="res://kenney_city-kit-industrial_2.0/Models/GLB format/building-r.glb" id="10_js2t8"]
 [ext_resource type="PackedScene" uid="uid://bgsfu6cqtf4g1" path="res://kenney_city-kit-industrial_2.0/Models/GLB format/building-p.glb" id="13_muogi"]
 [ext_resource type="PackedScene" path="res://pause_menu.tscn" id="99_pause"]
+[ext_resource type="Script" path="res://navmesh_baker.gd" id="98_nav"]
+[ext_resource type="Script" path="res://zombie_spawner.gd" id="97_spawner"]
 [ext_resource type="PackedScene" uid="uid://ge1vvj72mad" path="res://kenney_city-kit-industrial_2.0/Models/GLB format/building-i.glb" id="15_awt07"]
 [ext_resource type="PackedScene" path="res://target.tscn" id="16_target"]
 [ext_resource type="PackedScene" path="res://rigid_crate.tscn" id="17_crate"]
@@ -324,3 +326,11 @@ transform = Transform3D(0.965926, 0, 0.258819, 0, 1, 0, -0.258819, 0, 0.965926, 
 [editable path="building-i2"]
 
 [node name="PauseMenu" parent="." instance=ExtResource("99_pause")]
+
+[node name="NavigationRegion3D" type="NavigationRegion3D" parent="."]
+script = ExtResource("98_nav")
+
+[node name="ZombieSpawner" type="Node3D" parent="." node_paths=PackedStringArray("navigation")]
+script = ExtResource("97_spawner")
+navigation = NodePath("../NavigationRegion3D")
+

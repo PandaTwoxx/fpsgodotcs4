@@ -30,14 +30,6 @@ const RELOAD_DIP_ROT := Vector3(0.7, 0.0, 0.0)
 @onready var shoot_sound: AudioStreamPlayer = get_node_or_null("ShootSound")
 @onready var crosshair_hud: CanvasLayer = get_node_or_null("CrosshairHUD")
 
-const ANIM_DIR := "res://kenney_animated-characters-survivors/Animations/"
-# short name -> [source file, clip name inside the file, loops?]
-const ANIMATIONS := {
-	"idle": ["idle.fbx", "Root|Idle", true],
-	"run": ["run.fbx", "Root|Run", true],
-	"jump": ["jump.fbx", "Root|Jump", false],
-}
-
 var animation_player: AnimationPlayer
 var fire_timer: float = 0.0
 var ammo: int = 0
@@ -47,13 +39,15 @@ var weapon_default_rot: Vector3 = Vector3.ZERO
 var muzzle_tween: Tween
 
 func _ready() -> void:
+	add_to_group("player")
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	
 	if weapon_holder:
 		weapon_default_pos = weapon_holder.position
 		weapon_default_rot = weapon_holder.rotation
 	
-	_setup_animations()
+	if character:
+		animation_player = CharacterAnimations.attach(character)
 	_apply_settings()
 	Settings.changed.connect(_apply_settings)
 	ammo = magazine_size
@@ -61,31 +55,6 @@ func _ready() -> void:
 
 func _apply_settings() -> void:
 	camera.fov = Settings.fov
-
-# The character model ships without an AnimationPlayer; its clips live in
-# separate FBX files, so collect them into one library at startup.
-func _setup_animations() -> void:
-	if not character:
-		return
-	var library := AnimationLibrary.new()
-	for anim_name: String in ANIMATIONS:
-		var info: Array = ANIMATIONS[anim_name]
-		var path: String = ANIM_DIR + info[0]
-		if not ResourceLoader.exists(path):
-			continue
-		var source: Node = (load(path) as PackedScene).instantiate()
-		var source_player := source.find_child("AnimationPlayer", true, false) as AnimationPlayer
-		if source_player and source_player.has_animation(info[1]):
-			var clip := source_player.get_animation(info[1]).duplicate() as Animation
-			clip.loop_mode = Animation.LOOP_LINEAR if info[2] else Animation.LOOP_NONE
-			library.add_animation(anim_name, clip)
-		else:
-			push_warning("Animation '%s' not found in %s" % [info[1], info[0]])
-		source.free()
-	animation_player = AnimationPlayer.new()
-	character.add_child(animation_player)
-	animation_player.add_animation_library("", library)
-	animation_player.play("idle")
 
 func _unhandled_input(event: InputEvent) -> void:
 	# Click to recapture mouse
