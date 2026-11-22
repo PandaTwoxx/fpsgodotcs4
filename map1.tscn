@@ -14,6 +14,7 @@
 [ext_resource type="PackedScene" uid="uid://b1uw5nnds6pph" path="res://kenney_city-kit-industrial_2.0/Models/GLB format/building-n.glb" id="9_758qj"]
 [ext_resource type="PackedScene" uid="uid://v23kn0wb26ia" path="res://kenney_city-kit-industrial_2.0/Models/GLB format/building-r.glb" id="10_js2t8"]
 [ext_resource type="PackedScene" uid="uid://bgsfu6cqtf4g1" path="res://kenney_city-kit-industrial_2.0/Models/GLB format/building-p.glb" id="13_muogi"]
+[ext_resource type="PackedScene" path="res://pause_menu.tscn" id="99_pause"]
 [ext_resource type="PackedScene" uid="uid://ge1vvj72mad" path="res://kenney_city-kit-industrial_2.0/Models/GLB format/building-i.glb" id="15_awt07"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_p84jh"]
@@ -301,3 +302,5 @@ transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, -17.040907, 0.5, 8.040292)
 [editable path="building-p2"]
 [editable path="building-k2"]
 [editable path="building-i2"]
+
+[node name="PauseMenu" parent="." instance=ExtResource("99_pause")]
