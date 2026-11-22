@@ -2,7 +2,7 @@ extends CharacterBody3D
 
 const SPEED = 4.0
 const JUMP_VELOCITY = 4.5
-const SENSITIVITY = 0.0015
+const BASE_SENSITIVITY = 0.0015
 
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 
@@ -55,6 +55,11 @@ func _ready() -> void:
 		weapon_default_rot = weapon_holder.rotation
 	
 	_setup_animations()
+	_apply_settings()
+	Settings.changed.connect(_apply_settings)
+
+func _apply_settings() -> void:
+	camera.fov = Settings.fov
 
 # The character model ships without an AnimationPlayer; its clips live in
 # separate FBX files, so collect them into one library at startup.
@@ -95,8 +100,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	
 	# Camera mouse look
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		rotate_y(-event.relative.x * SENSITIVITY)
-		head.rotate_x(-event.relative.y * SENSITIVITY)
+		rotate_y(-event.relative.x * BASE_SENSITIVITY * Settings.mouse_sensitivity)
+		head.rotate_x(-event.relative.y * BASE_SENSITIVITY * Settings.mouse_sensitivity)
 		head.rotation.x = clamp(head.rotation.x, deg_to_rad(-89), deg_to_rad(89))
 
 func _process(delta: float) -> void:
