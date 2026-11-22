@@ -2,6 +2,7 @@
 
 [ext_resource type="PackedScene" uid="uid://ddn7hby4kabo" path="res://kenney_animated-characters-survivors/Model/characterMedium.fbx" id="1_ncvs4"]
 [ext_resource type="Texture2D" uid="uid://c02rovklbt1wf" path="res://kenney_animated-characters-survivors/Skins/survivorMaleB.png" id="2_t1rpu"]
+[ext_resource type="PackedScene" uid="uid://b12mj0xivvy2c" path="res://kenney_blaster-kit_2.1/Models/GLB format/blaster-a.glb" id="3_t1rpu"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_shob3"]
 
@@ -30,5 +31,10 @@ transform = Transform3D(0.2, 0, 0, 0, 0.2, 0, 0, 0, 0.2, 0, -0.33852553, 0)
 [node name="characterMedium" parent="characterMedium/Root/Skeleton3D" parent_id_path=PackedInt32Array(797134779, 1738695849) index="0" unique_id=1924829489]
 cast_shadow = 3
 surface_material_override/0 = SubResource("StandardMaterial3D_shob3")
+
+[node name="WeaponHolder" type="Node3D" parent="." unique_id=1245144301]
+
+[node name="blaster-a2" parent="WeaponHolder" unique_id=1025235869 instance=ExtResource("3_t1rpu")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.20195526, 0.2619396, -0.053191632)
 
 [editable path="characterMedium"]
