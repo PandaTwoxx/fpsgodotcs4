@@ -1,0 +1,116 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://remote_player.gd" id="1_rem"]
+[ext_resource type="PackedScene" uid="uid://ddn7hby4kabo" path="res://kenney_animated-characters-survivors/Model/characterMedium.fbx" id="2_ncvs4"]
+[ext_resource type="Texture2D" uid="uid://c02rovklbt1wf" path="res://kenney_animated-characters-survivors/Skins/survivorMaleB.png" id="3_t1rpu"]
+[ext_resource type="PackedScene" uid="uid://b12mj0xivvy2c" path="res://kenney_blaster-kit_2.1/Models/GLB format/blaster-a.glb" id="4_blstr"]
+[ext_resource type="AudioStream" path="res://sounds/blaster_fire.wav" id="5_sfxbr"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_rem"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rem"]
+albedo_texture = ExtResource("3_t1rpu")
+
+[sub_resource type="ViewportTexture" id="ViewportTexture_rem"]
+viewport_path = NodePath("SubViewport")
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
+bg_color = Color(0.08, 0.08, 0.1, 0.75)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_bg"]
+bg_color = Color(0.2, 0.2, 0.2, 0.8)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_fill"]
+bg_color = Color(0.2, 0.8, 0.2, 0.95)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[node name="RemotePlayer" type="CharacterBody3D"]
+script = ExtResource("1_rem")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0)
+shape = SubResource("CapsuleShape3D_rem")
+
+[node name="characterMedium" parent="." instance=ExtResource("2_ncvs4")]
+transform = Transform3D(0.2, 0, 0, 0, 0.2, 0, 0, 0, 0.2, 0, -0.33852553, 0)
+
+[node name="characterMedium" parent="characterMedium/Root/Skeleton3D" index="0"]
+cast_shadow = 1
+surface_material_override/0 = SubResource("StandardMaterial3D_rem")
+
+[node name="WeaponHolder" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.18, 0.28, -0.22)
+
+[node name="blaster-a" parent="WeaponHolder" instance=ExtResource("4_blstr")]
+transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, 0, 0, 0)
+
+[node name="Muzzle" type="Marker3D" parent="WeaponHolder"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.04, -0.35)
+
+[node name="MuzzleFlash" type="OmniLight3D" parent="WeaponHolder/Muzzle"]
+light_color = Color(1, 0.75, 0.3, 1)
+light_energy = 0.0
+omni_range = 3.5
+
+[node name="ShootSound3D" type="AudioStreamPlayer3D" parent="."]
+stream = ExtResource("5_sfxbr")
+volume_db = 0.0
+max_distance = 45.0
+attenuation_model = 1
+
+[node name="OverheadHUD" type="Sprite3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
+billboard = 1
+no_depth_test = true
+texture = SubResource("ViewportTexture_rem")
+
+[node name="SubViewport" type="SubViewport" parent="."]
+transparent_bg = true
+size = Vector2i(180, 44)
+render_target_update_mode = 4
+
+[node name="Panel" type="Panel" parent="SubViewport"]
+offset_right = 180.0
+offset_bottom = 44.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_bg")
+
+[node name="VBox" type="VBoxContainer" parent="SubViewport/Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 6.0
+offset_top = 4.0
+offset_right = -6.0
+offset_bottom = -4.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="NameLabel" type="Label" parent="SubViewport/Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 14
+text = "Survivor"
+horizontal_alignment = 1
+
+[node name="HPBar" type="ProgressBar" parent="SubViewport/Panel/VBox"]
+custom_minimum_size = Vector2(0, 6)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_hp_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_hp_fill")
+value = 100.0
+show_percentage = false
+
+[editable path="characterMedium"]

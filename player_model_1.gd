@@ -13,6 +13,11 @@ var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 @export var recoil_kick: float = 0.05
 @export var recoil_rotation: float = 0.04
 
+@export_group("Health")
+@export var max_health: float = 100.0
+var health: float = 100.0
+var is_dead: bool = false
+
 const BULLET_TRACER_SCENE = preload("res://bullet_tracer.tscn")
 const IMPACT_EFFECT_SCENE = preload("res://impact_effect.tscn")
 
@@ -27,12 +32,22 @@ const IMPACT_EFFECT_SCENE = preload("res://impact_effect.tscn")
 @onready var crosshair_hud: CanvasLayer = get_node_or_null("CrosshairHUD")
 
 const ANIM_DIR := "res://kenney_animated-characters-survivors/Animations/"
-# short name -> [source file, clip name inside the file, loops?]
 const ANIMATIONS := {
 	"idle": ["idle.fbx", "Root|Idle", true],
 	"run": ["run.fbx", "Root|Run", true],
 	"jump": ["jump.fbx", "Root|Jump", false],
 }
+
+const SPAWN_POINTS: Array[Vector3] = [
+	Vector3(0, 2.0, 2.5),
+	Vector3(-12.0, 2.0, 8.0),
+	Vector3(12.0, 2.0, 8.0),
+	Vector3(-10.0, 2.0, -12.0),
+	Vector3(10.0, 2.0, -12.0),
+	Vector3(0, 2.0, -16.0),
+	Vector3(-16.0, 2.0, -2.0),
+	Vector3(16.0, 2.0, -2.0)
+]
 
 var animation_player: AnimationPlayer
 var fire_timer: float = 0.0
@@ -41,7 +56,9 @@ var weapon_default_rot: Vector3 = Vector3.ZERO
 var muzzle_tween: Tween
 
 func _ready() -> void:
+	add_to_group("player")
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	health = max_health
 	
 	# Register shoot input action if not present
 	if not InputMap.has_action("shoot"):
@@ -55,9 +72,83 @@ func _ready() -> void:
 		weapon_default_rot = weapon_holder.rotation
 	
 	_setup_animations()
+	_connect_network()
+	
+	# Initial health update to HUD
+	var hud = _get_multiplayer_hud()
+	if hud and hud.has_method("update_hp"):
+		hud.update_hp(health, max_health)
 
-# The character model ships without an AnimationPlayer; its clips live in
-# separate FBX files, so collect them into one library at startup.
+func _get_network() -> Node:
+	return get_node_or_null("/root/Network")
+
+func _get_multiplayer_hud() -> Node:
+	if get_tree():
+		var node = get_tree().get_first_node_in_group("multiplayer_hud")
+		if node:
+			return node
+		if get_tree().current_scene:
+			node = get_tree().current_scene.get_node_or_null("MultiplayerHUD")
+			if node:
+				return node
+	return null
+
+func _connect_network() -> void:
+	var net = _get_network()
+	if not net:
+		return
+	net.connected_to_server.connect(_on_net_connected)
+	net.player_damaged.connect(_on_net_player_damaged)
+	net.player_respawned.connect(_on_net_player_respawned)
+
+func _on_net_connected(id: String, info: Dictionary) -> void:
+	if info.has("spawn_pos"):
+		var sp: Array = info["spawn_pos"]
+		global_position = Vector3(sp[0], sp[1], sp[2])
+	if info.has("skin"):
+		set_skin(info["skin"])
+
+func _on_net_player_damaged(victim_id: String, attacker_id: String, dmg: float, new_hp: float) -> void:
+	var net = _get_network()
+	if net and victim_id == net.my_id:
+		health = new_hp
+		var hud = _get_multiplayer_hud()
+		if hud:
+			hud.update_hp(health, max_health)
+			hud.trigger_damage_flash()
+		if health <= 0.0 and not is_dead:
+			var attacker_name = "Enemy"
+			if net.all_players.has(attacker_id):
+				attacker_name = net.all_players[attacker_id].get("name", "Enemy")
+			die(attacker_name)
+
+func _on_net_player_respawned(pid: String, pos: Vector3, hp: float) -> void:
+	var net = _get_network()
+	if net and pid == net.my_id:
+		global_position = pos
+		health = hp
+		is_dead = false
+		velocity = Vector3.ZERO
+		var hud = _get_multiplayer_hud()
+		if hud:
+			hud.update_hp(health, max_health)
+
+func set_skin(skin_key: String) -> void:
+	const SKIN_PATHS := {
+		"survivorMaleB": "res://kenney_animated-characters-survivors/Skins/survivorMaleB.png",
+		"survivorFemaleA": "res://kenney_animated-characters-survivors/Skins/survivorFemaleA.png",
+		"zombieA": "res://kenney_animated-characters-survivors/Skins/zombieA.png",
+		"zombieC": "res://kenney_animated-characters-survivors/Skins/zombieC.png"
+	}
+	var path: String = SKIN_PATHS.get(skin_key, SKIN_PATHS["survivorMaleB"])
+	if ResourceLoader.exists(path) and character:
+		var tex: Texture2D = load(path)
+		var mat := StandardMaterial3D.new()
+		mat.albedo_texture = tex
+		var mesh_instance := character.find_child("characterMedium", true, false) as GeometryInstance3D
+		if mesh_instance:
+			mesh_instance.material_override = mat
+
 func _setup_animations() -> void:
 	if not character:
 		return
@@ -73,8 +164,6 @@ func _setup_animations() -> void:
 			var clip := source_player.get_animation(info[1]).duplicate() as Animation
 			clip.loop_mode = Animation.LOOP_LINEAR if info[2] else Animation.LOOP_NONE
 			library.add_animation(anim_name, clip)
-		else:
-			push_warning("Animation '%s' not found in %s" % [info[1], info[0]])
 		source.free()
 	animation_player = AnimationPlayer.new()
 	character.add_child(animation_player)
@@ -88,11 +177,17 @@ func _unhandled_input(event: InputEvent) -> void:
 	
 	# Click to recapture mouse
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
-			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-			get_viewport().set_input_as_handled()
-			return
+		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not is_dead:
+			var hud = _get_multiplayer_hud()
+			# Don't capture mouse if dialog or chat is open
+			if not (hud and (hud.connect_dialog.visible or hud.is_chatting)):
+				Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+				get_viewport().set_input_as_handled()
+				return
 	
+	if is_dead:
+		return
+		
 	# Camera mouse look
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		rotate_y(-event.relative.x * SENSITIVITY)
@@ -100,6 +195,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		head.rotation.x = clamp(head.rotation.x, deg_to_rad(-89), deg_to_rad(89))
 
 func _process(delta: float) -> void:
+	if is_dead:
+		return
+		
 	if fire_timer > 0.0:
 		fire_timer -= delta
 	
@@ -116,6 +214,9 @@ func _process(delta: float) -> void:
 		weapon_holder.rotation = weapon_holder.rotation.lerp(weapon_default_rot, delta * 16.0)
 
 func shoot() -> void:
+	if is_dead:
+		return
+		
 	# Play shoot sound
 	if shoot_sound:
 		shoot_sound.pitch_scale = randf_range(0.95, 1.05)
@@ -146,14 +247,14 @@ func shoot() -> void:
 	# Raycast hit test
 	raycast.force_raycast_update()
 	var hit_pos: Vector3
+	var hit_normal := Vector3.UP
 	var is_hit := raycast.is_colliding()
+	var is_target := false
 	
 	if is_hit:
 		hit_pos = raycast.get_collision_point()
-		var hit_normal := raycast.get_collision_normal()
+		hit_normal = raycast.get_collision_normal()
 		var collider := raycast.get_collider()
-		
-		var is_target := false
 		
 		# Resolve target with take_damage method
 		var damage_target = collider
@@ -166,9 +267,18 @@ func shoot() -> void:
 			is_target = true
 			if crosshair_hud and crosshair_hud.has_method("show_hitmarker"):
 				crosshair_hud.show_hitmarker()
+			
+			# Sync target hit with server
+			var net = _get_network()
+			if net and net.is_connected_to_server():
+				if damage_target is StaticBody3D and "target" in damage_target.name.to_lower():
+					net.send_target_hit(damage_target.name, damage)
 		elif collider is RigidBody3D:
 			var push_dir := (hit_pos - camera.global_position).normalized()
 			collider.apply_impulse(push_dir * impact_force, hit_pos - collider.global_position)
+			var net = _get_network()
+			if net and net.is_connected_to_server() and collider.has_method("take_damage"):
+				net.send_crate_damage(collider.name, damage)
 		
 		# Spawn impact particles & sound
 		var impact := IMPACT_EFFECT_SCENE.instantiate()
@@ -181,6 +291,45 @@ func shoot() -> void:
 	var tracer := BULLET_TRACER_SCENE.instantiate()
 	_get_effects_container().add_child(tracer)
 	tracer.setup(muzzle_pos, hit_pos)
+	
+	# Broadcast shot to multiplayer peers
+	var net = _get_network()
+	if net and net.is_connected_to_server():
+		net.send_shoot(muzzle_pos, hit_pos, hit_normal, is_target)
+
+func take_damage(amount: float, attacker_id: String = "") -> void:
+	if is_dead:
+		return
+	health = maxf(0.0, health - amount)
+	var hud = _get_multiplayer_hud()
+	if hud:
+		hud.update_hp(health, max_health)
+		hud.trigger_damage_flash()
+	if health <= 0.0:
+		die(attacker_id)
+
+func die(killer_name: String = "") -> void:
+	is_dead = true
+	velocity = Vector3.ZERO
+	var hud = _get_multiplayer_hud()
+	if hud:
+		hud.show_death_screen(killer_name)
+
+func respawn() -> void:
+	health = max_health
+	is_dead = false
+	velocity = Vector3.ZERO
+	global_position = _get_random_spawn_point()
+	var hud = _get_multiplayer_hud()
+	if hud:
+		hud.update_hp(health, max_health)
+	var net = _get_network()
+	if net and net.is_connected_to_server():
+		net.send_respawn()
+
+func _get_random_spawn_point() -> Vector3:
+	var idx := randi() % SPAWN_POINTS.size()
+	return SPAWN_POINTS[idx] + Vector3(randf_range(-0.8, 0.8), 0, randf_range(-0.8, 0.8))
 
 func _get_effects_container() -> Node:
 	if get_tree() and get_tree().current_scene:
@@ -192,6 +341,9 @@ func _get_effects_container() -> Node:
 	return self
 
 func _physics_process(delta: float) -> void:
+	if is_dead:
+		return
+		
 	# Add gravity
 	if not is_on_floor():
 		velocity.y -= gravity * delta
@@ -224,3 +376,11 @@ func _physics_process(delta: float) -> void:
 			animation_player.play("idle")
 
 	move_and_slide()
+	
+	# Send state to multiplayer server
+	var current_anim := "idle"
+	if animation_player:
+		current_anim = animation_player.current_animation
+	var net = _get_network()
+	if net and net.is_connected_to_server():
+		net.send_state(global_position, velocity, rotation.y, head.rotation.x, current_anim, is_on_floor())

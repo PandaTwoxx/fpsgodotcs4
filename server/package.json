@@ -1,0 +1,12 @@
+{
+  "name": "3dgam-multiplayer-server",
+  "version": "1.0.0",
+  "description": "Single-port Bun multiplayer server for 3D FPS game",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "dev": "bun --watch src/index.ts"
+  },
+  "dependencies": {}
+}
