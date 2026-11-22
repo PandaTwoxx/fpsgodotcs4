@@ -12,14 +12,21 @@ var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 @export var impact_force: float = 12.0
 @export var recoil_kick: float = 0.05
 @export var recoil_rotation: float = 0.04
+@export var magazine_size: int = 12
+@export var reload_time: float = 1.3
 
 @export_group("Health")
 @export var max_health: float = 100.0
+@export var regen_delay: float = 6.0   # seconds without damage before healing starts
+@export var regen_rate: float = 3.0    # health per second while healing
+
 var health: float = 100.0
 var is_dead: bool = false
 
 const BULLET_TRACER_SCENE = preload("res://bullet_tracer.tscn")
 const IMPACT_EFFECT_SCENE = preload("res://impact_effect.tscn")
+const RELOAD_DIP_POS := Vector3(0.0, -0.22, 0.06)
+const RELOAD_DIP_ROT := Vector3(0.7, 0.0, 0.0)
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
@@ -30,13 +37,7 @@ const IMPACT_EFFECT_SCENE = preload("res://impact_effect.tscn")
 @onready var muzzle_flash: OmniLight3D = get_node_or_null("Head/Camera3D/WeaponHolder/Muzzle/MuzzleFlash")
 @onready var shoot_sound: AudioStreamPlayer = get_node_or_null("ShootSound")
 @onready var crosshair_hud: CanvasLayer = get_node_or_null("CrosshairHUD")
-
-const ANIM_DIR := "res://kenney_animated-characters-survivors/Animations/"
-const ANIMATIONS := {
-	"idle": ["idle.fbx", "Root|Idle", true],
-	"run": ["run.fbx", "Root|Run", true],
-	"jump": ["jump.fbx", "Root|Jump", false],
-}
+@onready var death_screen: CanvasLayer = get_node_or_null("DeathScreen")
 
 const SPAWN_POINTS: Array[Vector3] = [
 	Vector3(0, 2.0, 2.5),
@@ -51,6 +52,10 @@ const SPAWN_POINTS: Array[Vector3] = [
 
 var animation_player: AnimationPlayer
 var fire_timer: float = 0.0
+var ammo: int = 0
+var reload_left: float = 0.0  # > 0 while a reload is in progress
+var _since_damage := 0.0
+var _shake := 0.0
 var weapon_default_pos: Vector3 = Vector3(0.22, -0.22, -0.42)
 var weapon_default_rot: Vector3 = Vector3.ZERO
 var muzzle_tween: Tween
@@ -64,7 +69,8 @@ func _ready() -> void:
 		weapon_default_pos = weapon_holder.position
 		weapon_default_rot = weapon_holder.rotation
 	
-	_setup_animations()
+	if character:
+		animation_player = CharacterAnimations.attach(character)
 	_connect_network()
 	
 	# Initial health update to HUD
@@ -74,6 +80,8 @@ func _ready() -> void:
 	
 	_apply_settings()
 	Settings.changed.connect(_apply_settings)
+	ammo = magazine_size
+	_update_ammo_hud()
 
 func _apply_settings() -> void:
 	camera.fov = Settings.fov
@@ -148,28 +156,9 @@ func set_skin(skin_key: String) -> void:
 		if mesh_instance:
 			mesh_instance.material_override = mat
 
-func _setup_animations() -> void:
-	if not character:
-		return
-	var library := AnimationLibrary.new()
-	for anim_name: String in ANIMATIONS:
-		var info: Array = ANIMATIONS[anim_name]
-		var path: String = ANIM_DIR + info[0]
-		if not ResourceLoader.exists(path):
-			continue
-		var source: Node = (load(path) as PackedScene).instantiate()
-		var source_player := source.find_child("AnimationPlayer", true, false) as AnimationPlayer
-		if source_player and source_player.has_animation(info[1]):
-			var clip := source_player.get_animation(info[1]).duplicate() as Animation
-			clip.loop_mode = Animation.LOOP_LINEAR if info[2] else Animation.LOOP_NONE
-			library.add_animation(anim_name, clip)
-		source.free()
-	animation_player = AnimationPlayer.new()
-	character.add_child(animation_player)
-	animation_player.add_animation_library("", library)
-	animation_player.play("idle")
-
 func _unhandled_input(event: InputEvent) -> void:
+	if is_dead:
+		return
 	# Click to recapture mouse
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not is_dead:
@@ -192,26 +181,61 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if is_dead:
 		return
-		
+	_update_health(delta)
+	
 	if fire_timer > 0.0:
 		fire_timer -= delta
 	
+	# Reload progress
+	if reload_left > 0.0:
+		reload_left -= delta
+		if reload_left <= 0.0:
+			_finish_reload()
+	
+	if Input.is_action_just_pressed("reload"):
+		start_reload()
+	
 	# Check shooting input
 	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		if Input.is_action_pressed("shoot"):
-			if fire_timer <= 0.0:
+		if Input.is_action_pressed("shoot") and fire_timer <= 0.0 and reload_left <= 0.0:
+			if ammo > 0:
 				shoot()
 				fire_timer = fire_rate
+			else:
+				start_reload()  # trigger pulled on an empty magazine
 	
-	# Smooth recoil recovery
+	# Smooth recoil recovery; the weapon dips while reloading
 	if weapon_holder:
-		weapon_holder.position = weapon_holder.position.lerp(weapon_default_pos, delta * 14.0)
-		weapon_holder.rotation = weapon_holder.rotation.lerp(weapon_default_rot, delta * 16.0)
+		var reloading := reload_left > 0.0
+		var target_pos := weapon_default_pos + (RELOAD_DIP_POS if reloading else Vector3.ZERO)
+		var target_rot := weapon_default_rot + (RELOAD_DIP_ROT if reloading else Vector3.ZERO)
+		weapon_holder.position = weapon_holder.position.lerp(target_pos, delta * 14.0)
+		weapon_holder.rotation = weapon_holder.rotation.lerp(target_rot, delta * 16.0)
+
+func start_reload() -> void:
+	if reload_left > 0.0 or ammo >= magazine_size:
+		return
+	reload_left = reload_time
+	if crosshair_hud and crosshair_hud.has_method("set_reloading"):
+		crosshair_hud.set_reloading(true)
+
+func _finish_reload() -> void:
+	ammo = magazine_size
+	if crosshair_hud and crosshair_hud.has_method("set_reloading"):
+		crosshair_hud.set_reloading(false)
+	_update_ammo_hud()
+
+func _update_ammo_hud() -> void:
+	if crosshair_hud and crosshair_hud.has_method("set_ammo"):
+		crosshair_hud.set_ammo(ammo, magazine_size)
 
 func shoot() -> void:
 	if is_dead:
 		return
-		
+	
+	ammo -= 1
+	_update_ammo_hud()
+	
 	# Play shoot sound
 	if shoot_sound:
 		shoot_sound.pitch_scale = randf_range(0.95, 1.05)
@@ -292,10 +316,14 @@ func shoot() -> void:
 	if net and net.is_connected_to_server():
 		net.send_shoot(muzzle_pos, hit_pos, hit_normal, is_target)
 
+## Called by zombies and by the multiplayer layer. Flashes the screen, shakes the
+## camera, and may kill the player.
 func take_damage(amount: float, attacker_id: String = "") -> void:
 	if is_dead:
 		return
 	health = maxf(0.0, health - amount)
+	_since_damage = 0.0
+	_shake = 1.0
 	var hud = _get_multiplayer_hud()
 	if hud:
 		hud.update_hp(health, max_health)
@@ -306,14 +334,25 @@ func take_damage(amount: float, attacker_id: String = "") -> void:
 func die(killer_name: String = "") -> void:
 	is_dead = true
 	velocity = Vector3.ZERO
+	camera.h_offset = 0.0
+	camera.v_offset = 0.0
+	var net = _get_network()
 	var hud = _get_multiplayer_hud()
-	if hud:
-		hud.show_death_screen(killer_name)
+	if net and net.is_connected_to_server() and hud:
+		hud.show_death_screen(killer_name)  # multiplayer: arena-style auto-respawn
+	elif death_screen and death_screen.has_method("show_screen"):
+		death_screen.show_screen()  # solo vs zombies: game over with wave stats
 
 func respawn() -> void:
 	health = max_health
 	is_dead = false
 	velocity = Vector3.ZERO
+	# Fresh magazine on respawn (cancel any reload that was in progress)
+	reload_left = 0.0
+	ammo = magazine_size
+	if crosshair_hud and crosshair_hud.has_method("set_reloading"):
+		crosshair_hud.set_reloading(false)
+	_update_ammo_hud()
 	global_position = _get_random_spawn_point()
 	var hud = _get_multiplayer_hud()
 	if hud:
@@ -338,7 +377,7 @@ func _get_effects_container() -> Node:
 func _physics_process(delta: float) -> void:
 	if is_dead:
 		return
-		
+	
 	# Add gravity
 	if not is_on_floor():
 		velocity.y -= gravity * delta
@@ -373,3 +412,15 @@ func _physics_process(delta: float) -> void:
 	var net = _get_network()
 	if net and net.is_connected_to_server():
 		net.send_state(global_position, velocity, rotation.y, head.rotation.x, current_anim, is_on_floor())
+
+## Slow regeneration after a quiet spell, plus the decaying camera shake after a hit.
+func _update_health(delta: float) -> void:
+	_since_damage += delta
+	if _since_damage >= regen_delay and health < max_health:
+		health = minf(health + regen_rate * delta, max_health)
+		var hud = _get_multiplayer_hud()
+		if hud and hud.has_method("update_hp"):
+			hud.update_hp(health, max_health)
+	_shake = maxf(_shake - delta * 4.0, 0.0)
+	camera.h_offset = randf_range(-1.0, 1.0) * 0.03 * _shake
+	camera.v_offset = randf_range(-1.0, 1.0) * 0.03 * _shake

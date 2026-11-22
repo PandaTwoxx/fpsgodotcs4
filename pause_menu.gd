@@ -24,6 +24,9 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not event.is_action_pressed("pause"):
 		return
+	var player := get_tree().get_first_node_in_group("player")
+	if player and player.get("is_dead"):
+		return  # the death screen owns the game now
 	
 	# If multiplayer connect dialog or chat is open, let that close first
 	var mp_hud = _get_multiplayer_hud()

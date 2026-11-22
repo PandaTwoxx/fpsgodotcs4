@@ -1,0 +1,22 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://zombie.gd" id="1_zombie"]
+[ext_resource type="PackedScene" uid="uid://ddn7hby4kabo" path="res://kenney_animated-characters-survivors/Model/characterMedium.fbx" id="2_model"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_zombie"]
+
+[node name="Zombie" type="CharacterBody3D"]
+script = ExtResource("1_zombie")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0)
+shape = SubResource("CapsuleShape3D_zombie")
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
+path_desired_distance = 0.3
+target_desired_distance = 0.6
+radius = 0.25
+height = 0.9
+
+[node name="Model" parent="." instance=ExtResource("2_model")]
+transform = Transform3D(0.2, 0, 0, 0, 0.2, 0, 0, 0, 0.2, 0, -0.33852553, 0)
