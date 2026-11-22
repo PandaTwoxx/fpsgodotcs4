@@ -17,6 +17,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+Network="*res://network.gd"
 Settings="*res://settings.gd"
 Game="*res://game_state.gd"
 

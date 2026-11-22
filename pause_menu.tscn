@@ -39,6 +39,10 @@ horizontal_alignment = 1
 layout_mode = 2
 text = "Resume"
 
+[node name="MultiplayerButton" type="Button" parent="Center/Main"]
+layout_mode = 2
+text = "Multiplayer Settings"
+
 [node name="ControlsButton" type="Button" parent="Center/Main"]
 layout_mode = 2
 text = "How to Play"
@@ -79,12 +83,16 @@ horizontal_alignment = 1
 
 [node name="Instructions" type="Label" parent="Center/ControlsPanel/Margin/VBox"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 18
 text = "W / A / S / D  -  Move
 Mouse  -  Look around
-Left click  -  Shoot
+Left Click  -  Shoot Blaster
 R  -  Reload
 Space  -  Jump
-Esc  -  Pause / Resume"
+M  -  Multiplayer Menu
+Tab (Hold)  -  Scoreboard & Players
+T / Enter  -  Chat
+Esc  -  Pause / Menu"
 
 [node name="BackButton" type="Button" parent="Center/ControlsPanel/Margin/VBox"]
 layout_mode = 2
