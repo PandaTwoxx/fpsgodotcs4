@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: game-server
+  namespace: 3dgam
+  labels:
+    app: game-server
+spec:
+  replicas: 1
+  # Only one replica — WebSocket state is in-process (no sticky sessions needed
+  # for a single instance; scale horizontally only after adding Redis/state-share).
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: game-server
+  template:
+    metadata:
+      labels:
+        app: game-server
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: game-server
+          # Image is updated by the GitHub Actions CI workflow via kustomize patch.
+          image: ghcr.io/pandatwoxx/fpsgodotcs4/game-server:latest
+          imagePullPolicy: Always
+          ports:
+            - name: ws-http
+              containerPort: 8910
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "8910"
+            - name: HOST
+              value: "0.0.0.0"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8910
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8910
+            initialDelaySeconds: 3
+            periodSeconds: 10
+      restartPolicy: Always

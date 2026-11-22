@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: 3dgam-game-server
+  namespace: argocd          # ArgoCD itself lives in the argocd namespace
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/PandaTwoxx/fpsgodotcs4.git
+    targetRevision: main
+    path: k8s               # ArgoCD watches everything in k8s/
+
+  destination:
+    server: https://kubernetes.default.svc   # in-cluster (k3s)
+    namespace: 3dgam
+
+  syncPolicy:
+    automated:
+      prune: true           # remove resources deleted from git
+      selfHeal: true        # revert manual kubectl edits
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
