@@ -1,0 +1,32 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://impact_effect.gd" id="1_se5lf"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_sq0r1"]
+shading_mode = 0
+albedo_color = Color(1, 0.8, 0.3, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_luj1u"]
+material = SubResource("StandardMaterial3D_sq0r1")
+size = Vector3(0.04, 0.04, 0.08)
+
+[node name="ImpactEffect" type="Node3D" unique_id=2129524373]
+script = ExtResource("1_se5lf")
+
+[node name="CPUParticles3D" type="CPUParticles3D" parent="." unique_id=1077030314]
+amount = 16
+lifetime = 0.35
+one_shot = true
+explosiveness = 0.95
+mesh = SubResource("BoxMesh_luj1u")
+emission_shape = 1
+emission_sphere_radius = 0.05
+direction = Vector3(0, 0, 1)
+initial_velocity_min = 3.0
+initial_velocity_max = 6.0
+scale_amount_min = 0.04
+scale_amount_max = 0.08
+color = Color(1, 0.7, 0.2, 1)
+
+[node name="AudioStreamPlayer3D" type="AudioStreamPlayer3D" parent="." unique_id=1782182361]
+max_distance = 40.0
